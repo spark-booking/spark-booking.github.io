@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Opening Room w2282...</title>
-<meta http-equiv="refresh" content="0; url=microsoft-edge-https://ai-innovation-lab-app-ebbdbdbfaecdbeba.walmart.com/room/w2282">
 <style>
   body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -24,15 +23,43 @@
 </style>
 </head>
 <body>
-  <h1>Opening Room w2282 in Microsoft Edge&hellip;</h1>
+  <h1 id="heading">Opening Room w2282&hellip;</h1>
   <p>If nothing happens, tap the button below.</p>
-  <a class="btn" href="microsoft-edge-https://ai-innovation-lab-app-ebbdbdbfaecdbeba.walmart.com/room/w2282">Open in Microsoft Edge</a>
-  <a class="fallback" href="https://ai-innovation-lab-app-ebbdbdbfaecdbeba.walmart.com/room/w2282">Don't have Edge? Open normally instead</a>
+  <a class="btn" id="launch-btn" href="https://ai-innovation-lab-app-ebbdbdbfaecdbeba.walmart.com/room/w2282">Open Room w2282</a>
+  <a class="fallback" href="https://ai-innovation-lab-app-ebbdbdbfaecdbeba.walmart.com/room/w2282">Having trouble? Open normally instead</a>
   <script>
-    // Some mobile browsers block scheme navigation without a user
-    // gesture -- the meta-refresh above covers the ones that allow
-    // it; this covers the ones needing a JS-triggered nudge.
-    window.location.href = "microsoft-edge-https://ai-innovation-lab-app-ebbdbdbfaecdbeba.walmart.com/room/w2282";
+    // Force the corporate-tunnel browser based on platform, since
+    // BYOD devices route Walmart apps through different apps per OS:
+    //   iOS     -> Microsoft Edge     (microsoft-edge-https:// scheme)
+    //   Android -> "Web" app          (intent:// URI, package-targeted)
+    // Anything else (desktop, etc.) just uses the plain https:// link
+    // already set as the default href above.
+    (function () {
+      var ua = navigator.userAgent || "";
+      var isIOS = /iPhone|iPad|iPod/.test(ua);
+      var isAndroid = /Android/.test(ua);
+      var heading = document.getElementById("heading");
+      var btn = document.getElementById("launch-btn");
+      var targetUrl = null;
+
+      if (isIOS) {
+        targetUrl = "microsoft-edge-https://ai-innovation-lab-app-ebbdbdbfaecdbeba.walmart.com/room/w2282";
+        heading.textContent = "Opening Room w2282 in Microsoft Edge\u2026";
+        btn.textContent = "Open in Microsoft Edge";
+      } else if (isAndroid) {
+        targetUrl = "intent://ai-innovation-lab-app-ebbdbdbfaecdbeba.walmart.com/room/w2282#Intent;scheme=https;package=com.vmware.browser;S.browser_fallback_url=https%3A%2F%2Fai-innovation-lab-app-ebbdbdbfaecdbeba.walmart.com%2Froom%2Fw2282;end;";
+        heading.textContent = "Opening Room w2282 in Web\u2026";
+        btn.textContent = "Open in Web";
+      }
+
+      if (targetUrl) {
+        btn.href = targetUrl;
+        // Some mobile browsers block scheme/intent navigation without
+        // a user gesture -- this covers the ones that allow it
+        // automatically; the button covers the ones that don't.
+        window.location.href = targetUrl;
+      }
+    })();
   </script>
 </body>
 </html>

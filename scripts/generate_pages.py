@@ -1,21 +1,46 @@
 """
-Generates static redirect pages that force Microsoft Edge to open on
-BYOD devices for internal Walmart room-booking links.
+Generates static redirect pages that force the correct managed browser
+to open on BYOD devices for internal Walmart room-booking links.
 
 Why this exists: Zoom Rooms' QR generator requires a normal https://
-URL, but the only way to force a specific browser (Edge) regardless of
-a phone's default browser is the microsoft-edge-https:// custom
-scheme. Browsers won't let a plain https:// link auto-hijack into a
-different app, so we need a real, publicly-reachable https:// page
-(this one, on GitHub Pages) that hands off to Edge once loaded.
+URL, but plain https:// links can't force a specific app to open --
+each platform needs its own trick, and BYOD devices don't all use the
+same corporate-tunnel browser:
+
+  - iOS:     Edge is the tunneled browser -> microsoft-edge-https://
+  - Android: the tunneled browser is the "Web" app (Workspace ONE Web)
+             -> Android intent:// URI targeting its package, which
+             falls back to a plain https:// link if the app isn't
+             installed (S.browser_fallback_url).
+
+Browsers won't let a plain https:// link auto-hijack into a different
+app, so we need a real, publicly-reachable https:// page (this one, on
+GitHub Pages) that detects the platform client-side and hands off
+accordingly.
+
+KNOWN UNCONFIRMED VALUE: ANDROID_WEB_APP_PACKAGE below is a best guess
+(VMware Workspace ONE Web, commonly just labeled "Web" in the app
+drawer) -- not yet confirmed against the actual app on a real device.
+Confirm via Settings > Apps > Web > App details > look for the
+package/App ID, then update the constant below.
+
+Also unconfirmed: whether Android's Work Profile / Personal Profile
+split affects intent resolution when the QR is scanned from the
+personal-profile camera app. If the "Web" app only lives in the Work
+Profile, this intent link may not cross into it -- needs testing on a
+real BYOD device before wide rollout.
 
 To add a new room: add its slug to ROOM_SLUGS below, run this script,
 commit, and push. GitHub Pages picks up the change automatically.
 """
 from pathlib import Path
+from urllib.parse import quote
 
 APP_HOST = "ai-innovation-lab-app-ebbdbdbfaecdbeba.walmart.com"
 ROOM_SLUGS = ["w2281", "w2282", "w2367"]
+
+# BEST GUESS -- NOT YET CONFIRMED. See module docstring.
+ANDROID_WEB_APP_PACKAGE = "com.vmware.browser"
 
 OUTPUT_DIR = Path(__file__).parent.parent
 
@@ -25,7 +50,6 @@ PAGE_TEMPLATE = """<!DOCTYPE html>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Opening Room {slug}...</title>
-<meta http-equiv="refresh" content="0; url={edge_url}">
 <style>
   body {{
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -45,15 +69,43 @@ PAGE_TEMPLATE = """<!DOCTYPE html>
 </style>
 </head>
 <body>
-  <h1>Opening Room {slug} in Microsoft Edge&hellip;</h1>
+  <h1 id="heading">Opening Room {slug}&hellip;</h1>
   <p>If nothing happens, tap the button below.</p>
-  <a class="btn" href="{edge_url}">Open in Microsoft Edge</a>
-  <a class="fallback" href="{https_url}">Don't have Edge? Open normally instead</a>
+  <a class="btn" id="launch-btn" href="{https_url}">Open Room {slug}</a>
+  <a class="fallback" href="{https_url}">Having trouble? Open normally instead</a>
   <script>
-    // Some mobile browsers block scheme navigation without a user
-    // gesture -- the meta-refresh above covers the ones that allow
-    // it; this covers the ones needing a JS-triggered nudge.
-    window.location.href = "{edge_url}";
+    // Force the corporate-tunnel browser based on platform, since
+    // BYOD devices route Walmart apps through different apps per OS:
+    //   iOS     -> Microsoft Edge     (microsoft-edge-https:// scheme)
+    //   Android -> "Web" app          (intent:// URI, package-targeted)
+    // Anything else (desktop, etc.) just uses the plain https:// link
+    // already set as the default href above.
+    (function () {{
+      var ua = navigator.userAgent || "";
+      var isIOS = /iPhone|iPad|iPod/.test(ua);
+      var isAndroid = /Android/.test(ua);
+      var heading = document.getElementById("heading");
+      var btn = document.getElementById("launch-btn");
+      var targetUrl = null;
+
+      if (isIOS) {{
+        targetUrl = "{edge_url}";
+        heading.textContent = "Opening Room {slug} in Microsoft Edge\\u2026";
+        btn.textContent = "Open in Microsoft Edge";
+      }} else if (isAndroid) {{
+        targetUrl = "{android_intent_url}";
+        heading.textContent = "Opening Room {slug} in Web\\u2026";
+        btn.textContent = "Open in Web";
+      }}
+
+      if (targetUrl) {{
+        btn.href = targetUrl;
+        // Some mobile browsers block scheme/intent navigation without
+        // a user gesture -- this covers the ones that allow it
+        // automatically; the button covers the ones that don't.
+        window.location.href = targetUrl;
+      }}
+    }})();
   </script>
 </body>
 </html>
@@ -64,7 +116,7 @@ INDEX_TEMPLATE = """<!DOCTYPE html>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Room Booking -- Edge Redirects</title>
+<title>Room Booking -- Managed Browser Redirects</title>
 <style>
   body {{ font-family: -apple-system, sans-serif; max-width: 480px;
           margin: 40px auto; padding: 0 20px; color: #1a1a1a; }}
@@ -74,21 +126,42 @@ INDEX_TEMPLATE = """<!DOCTYPE html>
 </style>
 </head>
 <body>
-  <h1>Room Booking -- Force Edge Redirects</h1>
-  <p>Internal use: these links force Microsoft Edge on BYOD devices.</p>
+  <h1>Room Booking -- Managed Browser Redirects</h1>
+  <p>Internal use: these links force the corporate-tunnel browser on
+  BYOD devices (Edge on iOS, Web on Android).</p>
   {links}
 </body>
 </html>
 """
 
 
+def _android_intent_url(https_url: str) -> str:
+    """Build an Android intent:// URI that targets the Web app package,
+    falling back to the plain https:// URL if it isn't installed."""
+    without_scheme = https_url.split("://", 1)[1]
+    fallback = quote(https_url, safe="")
+    return (
+        f"intent://{without_scheme}#Intent;"
+        f"scheme=https;"
+        f"package={ANDROID_WEB_APP_PACKAGE};"
+        f"S.browser_fallback_url={fallback};"
+        f"end;"
+    )
+
+
 def build():
     links_html = []
     for slug in ROOM_SLUGS:
         https_url = f"https://{APP_HOST}/room/{slug}"
-        edge_url  = f"microsoft-edge-https://{APP_HOST}/room/{slug}"
+        edge_url = f"microsoft-edge-https://{APP_HOST}/room/{slug}"
+        android_intent_url = _android_intent_url(https_url)
 
-        page = PAGE_TEMPLATE.format(slug=slug, edge_url=edge_url, https_url=https_url)
+        page = PAGE_TEMPLATE.format(
+            slug=slug,
+            https_url=https_url,
+            edge_url=edge_url,
+            android_intent_url=android_intent_url,
+        )
         (OUTPUT_DIR / f"{slug}.html").write_text(page)
         links_html.append(f'  <a href="{slug}.html">Room {slug}</a>')
 
