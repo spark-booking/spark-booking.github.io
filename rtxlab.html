@@ -30,7 +30,7 @@
   <script>
     // Force the corporate-tunnel browser based on platform, since
     // BYOD devices route Walmart apps through different apps per OS:
-    //   iOS     -> Microsoft Edge     (microsoft-edge-https:// scheme)
+    //   iOS     -> Workspace ONE Web (awb scheme)
     //   Android -> "Web" app          (intent:// URI, package-targeted)
     // Anything else (desktop, etc.) just uses the plain https:// link
     // already set as the default href above.
@@ -43,9 +43,9 @@
       var targetUrl = null;
 
       if (isIOS) {
-        targetUrl = "microsoft-edge-https://ai-innovation-lab-app-ebbdbdbfaecdbeba.walmart.com/room/rtxlab";
-        heading.textContent = "Opening Room rtxlab in Microsoft Edge\u2026";
-        btn.textContent = "Open in Microsoft Edge";
+        targetUrl = "awb://ai-innovation-lab-app-ebbdbdbfaecdbeba.walmart.com/room/rtxlab";
+        heading.textContent = "Opening Room rtxlab in Workspace ONE Web\u2026";
+        btn.textContent = "Open in Workspace ONE Web";
       } else if (isAndroid) {
         targetUrl = "intent://ai-innovation-lab-app-ebbdbdbfaecdbeba.walmart.com/room/rtxlab#Intent;scheme=https;package=com.vmware.browser;S.browser_fallback_url=https%3A%2F%2Fai-innovation-lab-app-ebbdbdbfaecdbeba.walmart.com%2Froom%2Frtxlab;end;";
         heading.textContent = "Opening Room rtxlab in Web\u2026";

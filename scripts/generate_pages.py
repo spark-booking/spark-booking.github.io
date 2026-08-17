@@ -7,11 +7,18 @@ URL, but plain https:// links can't force a specific app to open --
 each platform needs its own trick, and BYOD devices don't all use the
 same corporate-tunnel browser:
 
-  - iOS:     Edge is the tunneled browser -> microsoft-edge-https://
+  - iOS:     defaults to Edge -> microsoft-edge-https://
+             Some rooms override to Workspace ONE Web -> awb://
+             (legacy "AirWatch Browser" scheme). Confirmed working in
+             iOS Safari; confirmed NOT working in Chrome for iOS --
+             whichever browser actually renders this redirect page is
+             what matters, not the device's default browser.
   - Android: the tunneled browser is the "Web" app (Workspace ONE Web)
              -> Android intent:// URI targeting its package, which
              falls back to a plain https:// link if the app isn't
-             installed (S.browser_fallback_url).
+             installed (S.browser_fallback_url). Not yet confirmed
+             whether awb:// also works on Android -- keep using
+             intent:// there until that's tested.
 
 Browsers won't let a plain https:// link auto-hijack into a different
 app, so we need a real, publicly-reachable https:// page (this one, on
@@ -30,14 +37,29 @@ personal-profile camera app. If the "Web" app only lives in the Work
 Profile, this intent link may not cross into it -- needs testing on a
 real BYOD device before wide rollout.
 
-To add a new room: add its slug to ROOM_SLUGS below, run this script,
-commit, and push. GitHub Pages picks up the change automatically.
+To add a new room: add its slug to ROOMS below (with {} for default
+iOS-Edge behavior, or {"ios_scheme": IOS_SCHEME_WORKSPACE_ONE} to use
+awb:// instead), run this script, commit, and push. GitHub Pages picks
+up the change automatically.
 """
 from pathlib import Path
 from urllib.parse import quote
 
 APP_HOST = "ai-innovation-lab-app-ebbdbdbfaecdbeba.walmart.com"
-ROOM_SLUGS = ["w2281", "w2282", "w2367", "rtxlab"]
+
+IOS_SCHEME_EDGE = "edge"
+IOS_SCHEME_WORKSPACE_ONE = "awb"
+
+# Per-room config. Default iOS behavior is Edge; override per room
+# once awb:// has been tested and confirmed for that device fleet.
+ROOMS = {
+    "w2281": {},
+    "w2282": {},
+    "w2367": {},
+    # rtxlab is the test room for unifying on Workspace ONE Web --
+    # awb:// confirmed working in iOS Safari (2026-08-17).
+    "rtxlab": {"ios_scheme": IOS_SCHEME_WORKSPACE_ONE},
+}
 
 # BEST GUESS -- NOT YET CONFIRMED. See module docstring.
 ANDROID_WEB_APP_PACKAGE = "com.vmware.browser"
@@ -76,7 +98,7 @@ PAGE_TEMPLATE = """<!DOCTYPE html>
   <script>
     // Force the corporate-tunnel browser based on platform, since
     // BYOD devices route Walmart apps through different apps per OS:
-    //   iOS     -> Microsoft Edge     (microsoft-edge-https:// scheme)
+    //   iOS     -> {ios_app_name} ({ios_scheme_label} scheme)
     //   Android -> "Web" app          (intent:// URI, package-targeted)
     // Anything else (desktop, etc.) just uses the plain https:// link
     // already set as the default href above.
@@ -89,9 +111,9 @@ PAGE_TEMPLATE = """<!DOCTYPE html>
       var targetUrl = null;
 
       if (isIOS) {{
-        targetUrl = "{edge_url}";
-        heading.textContent = "Opening Room {slug} in Microsoft Edge\\u2026";
-        btn.textContent = "Open in Microsoft Edge";
+        targetUrl = "{ios_url}";
+        heading.textContent = "Opening Room {slug} in {ios_app_name}\\u2026";
+        btn.textContent = "Open in {ios_app_name}";
       }} else if (isAndroid) {{
         targetUrl = "{android_intent_url}";
         heading.textContent = "Opening Room {slug} in Web\\u2026";
@@ -128,7 +150,7 @@ INDEX_TEMPLATE = """<!DOCTYPE html>
 <body>
   <h1>Room Booking -- Managed Browser Redirects</h1>
   <p>Internal use: these links force the corporate-tunnel browser on
-  BYOD devices (Edge on iOS, Web on Android).</p>
+  BYOD devices (Edge or Workspace ONE Web on iOS, Web on Android).</p>
   {links}
 </body>
 </html>
@@ -149,17 +171,27 @@ def _android_intent_url(https_url: str) -> str:
     )
 
 
+def _ios_url_and_name(slug: str, ios_scheme: str) -> tuple[str, str]:
+    """Build the iOS launch URL + display name for the given scheme."""
+    if ios_scheme == IOS_SCHEME_WORKSPACE_ONE:
+        return f"awb://{APP_HOST}/room/{slug}", "Workspace ONE Web"
+    return f"microsoft-edge-https://{APP_HOST}/room/{slug}", "Microsoft Edge"
+
+
 def build():
     links_html = []
-    for slug in ROOM_SLUGS:
+    for slug, room_cfg in ROOMS.items():
+        ios_scheme = room_cfg.get("ios_scheme", IOS_SCHEME_EDGE)
         https_url = f"https://{APP_HOST}/room/{slug}"
-        edge_url = f"microsoft-edge-https://{APP_HOST}/room/{slug}"
+        ios_url, ios_app_name = _ios_url_and_name(slug, ios_scheme)
         android_intent_url = _android_intent_url(https_url)
 
         page = PAGE_TEMPLATE.format(
             slug=slug,
             https_url=https_url,
-            edge_url=edge_url,
+            ios_url=ios_url,
+            ios_app_name=ios_app_name,
+            ios_scheme_label=ios_scheme,
             android_intent_url=android_intent_url,
         )
         (OUTPUT_DIR / f"{slug}.html").write_text(page)
@@ -168,7 +200,7 @@ def build():
     index = INDEX_TEMPLATE.format(links="\n".join(links_html))
     (OUTPUT_DIR / "index.html").write_text(index)
 
-    print(f"Generated {len(ROOM_SLUGS)} room pages + index.html in {OUTPUT_DIR}")
+    print(f"Generated {len(ROOMS)} room pages + index.html in {OUTPUT_DIR}")
 
 
 if __name__ == "__main__":
