@@ -37,7 +37,7 @@ from pathlib import Path
 from urllib.parse import quote
 
 APP_HOST = "ai-innovation-lab-app-ebbdbdbfaecdbeba.walmart.com"
-ROOM_SLUGS = ["w2281", "w2282", "w2367"]
+ROOM_SLUGS = ["w2281", "w2282", "w2367", "rtxlab"]
 
 # BEST GUESS -- NOT YET CONFIRMED. See module docstring.
 ANDROID_WEB_APP_PACKAGE = "com.vmware.browser"
