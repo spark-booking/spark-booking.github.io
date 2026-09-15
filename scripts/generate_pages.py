@@ -61,6 +61,7 @@ ROOMS = {
     "w2282": {"ios_scheme": IOS_SCHEME_WORKSPACE_ONE},
     "w2367": {"ios_scheme": IOS_SCHEME_WORKSPACE_ONE},
     "rtxlab": {"ios_scheme": IOS_SCHEME_WORKSPACE_ONE},
+    "1756": {"ios_scheme": IOS_SCHEME_WORKSPACE_ONE},
 }
 
 # BEST GUESS -- NOT YET CONFIRMED. See module docstring.
