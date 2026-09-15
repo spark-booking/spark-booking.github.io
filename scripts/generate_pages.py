@@ -7,12 +7,14 @@ URL, but plain https:// links can't force a specific app to open --
 each platform needs its own trick, and BYOD devices don't all use the
 same corporate-tunnel browser:
 
-  - iOS:     defaults to Edge -> microsoft-edge-https://
-             Some rooms override to Workspace ONE Web -> awb://
-             (legacy "AirWatch Browser" scheme). Confirmed working in
-             iOS Safari; confirmed NOT working in Chrome for iOS --
-             whichever browser actually renders this redirect page is
-             what matters, not the device's default browser.
+  - iOS:     uses Workspace ONE Web -> awb:// (legacy "AirWatch
+             Browser" scheme). Confirmed working in iOS Safari;
+             confirmed NOT working in Chrome for iOS -- whichever
+             browser actually renders this redirect page is what
+             matters, not the device's default browser. Edge
+             (microsoft-edge-https://) was the original default but
+             was dropped for all rooms since Edge isn't preloaded by
+             default on all iOS BYOD devices, while Web is.
   - Android: the tunneled browser is the "Web" app (Workspace ONE Web)
              -> Android intent:// URI targeting its package, which
              falls back to a plain https:// link if the app isn't
@@ -50,14 +52,14 @@ APP_HOST = "ai-innovation-lab-app-ebbdbdbfaecdbeba.walmart.com"
 IOS_SCHEME_EDGE = "edge"
 IOS_SCHEME_WORKSPACE_ONE = "awb"
 
-# Per-room config. Default iOS behavior is Edge; override per room
-# once awb:// has been tested and confirmed for that device fleet.
+# Per-room config. All rooms unified on Workspace ONE Web (awb://) for
+# iOS -- Edge isn't preloaded by default on all iOS BYOD devices, but
+# Web (Workspace ONE Web) is. Piloted on rtxlab (2026-08-17, confirmed
+# working in iOS Safari), rolled out to every room 2026-09-15.
 ROOMS = {
-    "w2281": {},
-    "w2282": {},
-    "w2367": {},
-    # rtxlab is the test room for unifying on Workspace ONE Web --
-    # awb:// confirmed working in iOS Safari (2026-08-17).
+    "w2281": {"ios_scheme": IOS_SCHEME_WORKSPACE_ONE},
+    "w2282": {"ios_scheme": IOS_SCHEME_WORKSPACE_ONE},
+    "w2367": {"ios_scheme": IOS_SCHEME_WORKSPACE_ONE},
     "rtxlab": {"ios_scheme": IOS_SCHEME_WORKSPACE_ONE},
 }
 
